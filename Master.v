@@ -2,46 +2,42 @@
 
 module spi_master
 #(
-	parameter	CLK_FREQUENCE	= 50_000_000		,	//system clk frequence
-				SPI_FREQUENCE	= 5_000_000			,	//spi clk frequence
-				DATA_WIDTH		= 8					,	//serial word length
-				CPOL			= 0					,	//SPI mode selection (mode 0 default)
-				CPHA			= 0					 	//CPOL = clock polarity, CPHA = clock phase
+	parameter	CLK_FREQUENCE	= 50_000_000,	
+			SPI_FREQUENCE	= 5_000_000,	
+			DATA_WIDTH	= 8,	
+			CPOL		= 0,	
+			CPHA		= 0					 	
 )
 (
-	input								clk			,	//system clk
-	input								rst_n		,	//system reset
-	input		[DATA_WIDTH-1:0]		data_in		,	//the data sent by mosi
-	input								start		,	//a pluse to start the SPI transmission
-	input								miso		,	//spi bus miso input
-	output	reg							sclk		,	//spi bus sclk
-	output	reg							cs_n		,	//spi bus slave select line
-	output								mosi		,	//spi bus mosi output
-	output	reg							finish		,	//a pluse to indicate the SPI transmission finish and the data_out valid
-	output	reg [DATA_WIDTH-1:0]		data_out	 	//the data received by miso,valid when the finish is high
+	input	clk,
+	input	rst_n,	//system reset
+	input	[DATA_WIDTH-1:0] data_in	,	
+	input	start,	//a pluse to start the SPI transmission
+	input	miso,	//spi bus miso input
+	output	reg sclk,	//spi bus sclk
+	output	reg cs_n,	//spi bus slave select line
+	output	mosi,	//spi bus mosi output
+	output	reg finish,	//a pluse to indicate the SPI transmission finish and the data_out valid
+	output	reg [DATA_WIDTH-1:0] data_out	 	//the data received by miso,valid when the finish is high
 );
 
-localparam	FREQUENCE_CNT	= CLK_FREQUENCE/SPI_FREQUENCE - 1	,
-			SHIFT_WIDTH		= log2(DATA_WIDTH)					,
-			CNT_WIDTH		= log2(FREQUENCE_CNT)				;
+localparam	FREQUENCE_CNT	= CLK_FREQUENCE/SPI_FREQUENCE - 1,
+		SHIFT_WIDTH	= log2(DATA_WIDTH),
+		CNT_WIDTH	= log2(FREQUENCE_CNT);
 
-localparam	IDLE	=	3'b000	,
-			LOAD	=	3'b001	,
-			SHIFT	=	3'b010	,
-			DONE	=	3'b100	;
-
-reg		[2:0]				cstate		;	//FSM current state
-reg		[2:0]				nstate		;	//FSM next state
-reg							clk_cnt_en	;	//start clk_cnt to generate sclk
-reg							sclk_a		;	//sclk register to capture the edge of sclk
-reg							sclk_b		;	//sclk register to capture the edge of sclk
-wire						sclk_posedge;	//posedge of sclk
-wire						sclk_negedge;	//negedge of sclk
-wire						shift_en	;	//the signal to enable shift register to generate mosi
-wire						sampl_en	;	//the signal to sample the data from miso
-reg		[CNT_WIDTH-1:0]		clk_cnt		;	//the counter to generate sclk
-reg		[SHIFT_WIDTH-1:0]	shift_cnt	;	//the counter to count the number of shifts
-reg		[DATA_WIDTH-1:0]	data_reg	;	//the register to latch the data_in,also the shift register
+localparam	IDLE = 3'b000, LOAD = 3'b001, SHIFT = 3'b010, DONE = 3'b100;
+reg [2:0] cstate;	//FSM current state
+reg [2:0] nstate;	//FSM next state
+reg clk_cnt_en;	//start clk_cnt to generate sclk
+reg sclk_a;	//sclk register to capture the edge of sclk
+reg sclk_b;	//sclk register to capture the edge of sclk
+wire sclk_posedge;	//posedge of sclk
+wire sclk_negedge;	//negedge of sclk
+wire shift_en;	//the signal to enable shift register to generate mosi
+wire sampl_en;	//the signal to sample the data from miso
+reg [CNT_WIDTH-1:0] clk_cnt;	//the counter to generate sclk
+reg [SHIFT_WIDTH-1:0] shift_cnt;	//the counter to count the number of shifts
+reg [DATA_WIDTH-1:0] data_reg	;	//the register to latch the data_in,also the shift register
 //the counter to generate the sclk
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) 
